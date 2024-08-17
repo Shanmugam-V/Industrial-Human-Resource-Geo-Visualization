@@ -1,0 +1,146 @@
+%%writefile app.py
+
+import pandas as pd
+import plotly.express as px
+import streamlit as st
+import joblib
+
+model = joblib.load('naive_bayes_model.pkl')
+tfidf_vectorizer = joblib.load('tfidf_vectorizer.pkl')
+
+def load_data():
+  data_path = ['/content/DDW_B18_0800_NIC_FINAL_STATE_RAJASTHAN-2011.csv',
+    '/content/DDW_B18_1200_NIC_FINAL_STATE_ARUNACHAL_PRADESH-2011.csv',
+    '/content/DDW_B18_1400_NIC_FINAL_STATE_MANIPUR-2011.csv',
+    '/content/DDW_B18_1500_NIC_FINAL_STATE_MIZORAM-2011.csv',
+    '/content/DDW_B18_1900_NIC_FINAL_STATE_WEST_BENGAL-2011.csv',
+    '/content/DDW_B18sc_0700_NIC_FINAL_STATE_NCT_OF_DELHI-2011.csv',
+    '/content/DDW_B18sc_1600_NIC_FINAL_STATE_TRIPURA-2011.csv',
+    '/content/DDW_B18sc_2000_NIC_FINAL_STATE_JHARKHAND-2011.csv',
+    '/content/DDW_B18sc_2400_NIC_FINAL_STATE_GUJARAT-2011.csv',
+    '/content/DDW_B18sc_2700_NIC_FINAL_STATE_MAHARASHTRA-2011.csv',
+    '/content/DDW_B18sc_2900_NIC_FINAL_STATE_KARNATAKA-2011.csv',
+    '/content/DDW_B18sc_3000_NIC_FINAL_STATE_GOA-2011.csv',
+    '/content/DDW_B18sc_3200_NIC_FINAL_STATE_KERALA-2011.csv',
+    '/content/DDW_B18sc_3300_NIC_FINAL_STATE_TAMIL_NADU-2011.csv',
+    '/content/DDW_B18sc_3400_NIC_FINAL_STATE_PUDUCHERRY-2011.csv',
+    '/content/DDW_B18st_0200_NIC_FINAL_STATE_HIMACHAL_PRADESH-2011.csv',
+    '/content/DDW_B18st_0500_NIC_FINAL_STATE_UTTARAKHAND-2011.csv',
+    '/content/DDW_B18st_0900_NIC_FINAL_STATE_UTTAR_PRADESH-2011.csv',
+    '/content/DDW_B18st_1000_NIC_FINAL_STATE_BIHAR-2011.csv',
+    '/content/DDW_B18st_1100_NIC_FINAL_STATE_SIKKIM-2011.csv',
+    '/content/DDW_B18st_1300_NIC_FINAL_STATE_NAGALAND-2011.csv',
+    '/content/DDW_B18st_1800_NIC_FINAL_STATE_ASSAM-2011.csv',
+    '/content/DDW_B18st_2100_NIC_FINAL_STATE_ODISHA-2011.csv']
+  encodings = ['utf-8', 'latin1', 'iso-8859-1']
+  dfs = []
+
+  for path in data_path:
+      for encoding in encodings:
+          try:
+              df = pd.read_csv(path, encoding=encoding)
+              dfs.append(df)
+              break
+          except Exception as e:
+              print(f"Error loading {path} with encoding {encoding}: {e}")
+
+  return pd.concat(dfs, ignore_index=True)
+
+data = load_data()
+
+# Title of the app
+st.title('Worker Population Dashboard')
+
+# Sidebar for selecting options
+st.sidebar.header('Filter Options')
+
+# Geography selection
+geographies = data['India/States'].unique()
+selected_geography = st.sidebar.selectbox('Select Geography', geographies)
+
+# Industry selection
+industries = data['NIC Name'].unique()
+selected_industry = st.sidebar.selectbox('Select Industry', industries)
+
+# Filter data based on selections
+filtered_data = data[(data['India/States'] == selected_geography) & (data['NIC Name'] == selected_industry)]
+
+if filtered_data.empty:
+    st.write("No data available for the selected criteria.")
+else:
+    # Show the filtered data
+    st.subheader('Filtered Data')
+    st.write(filtered_data)
+
+    # Reshape the DataFrame for the bar chart
+    try:
+        long_data = filtered_data.melt(
+            id_vars=['Division'],
+            value_vars=['Main Workers - Total -  Persons', 'Main Workers - Total - Males', 'Main Workers - Total - Females'],
+            var_name='Worker Type',
+            value_name='Number of Workers'
+        )
+
+        # Plotting
+        fig = px.bar(
+            long_data,
+            x='Division',
+            y='Number of Workers',
+            color='Worker Type',
+            title=f'Worker Population by Gender in {selected_geography} for {selected_industry}',
+            labels={'Number of Workers': 'Number of Workers', 'Worker Type': 'Worker Type'},
+            height=400
+        )
+        st.plotly_chart(fig)
+    except Exception as e:
+        st.write(f"Error creating bar chart: {e}")
+
+    # Example Plotly visualization - Marginal Workers by Geography
+
+    try:
+        # Melt the DataFrame to include more categories
+        long_data_marginal = filtered_data.melt(
+            id_vars=['Division'],
+            value_vars=[
+                'Marginal Workers - Total -  Persons',
+                'Marginal Workers - Total - Males',
+                'Marginal Workers - Total - Females'
+            ],
+            var_name='Worker Type',
+            value_name='Number of Workers'
+        )
+
+        # Plotting the bar chart
+        fig2 = px.bar(
+            long_data_marginal,
+            x='Division',
+            y='Number of Workers',
+            color='Worker Type',
+            title=f'Marginal Workers Distribution in {selected_geography} for {selected_industry}',
+            labels={'Number of Workers': 'Number of Marginal Workers', 'Worker Type': 'Worker Type'},
+            height=400
+        )
+        st.plotly_chart(fig2)
+    except Exception as e:
+        st.write(f"Error creating bar chart for marginal workers: {e}")
+
+    # Additional Analysis
+    st.subheader('Facts and Figures')
+
+    # Show some basic statistics
+    st.write('Basic Statistics:')
+    st.write(filtered_data.describe())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
